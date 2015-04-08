@@ -2,6 +2,12 @@ package com.example.activity;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import com.example.model.Beacon;
 import com.example.model.BeaconScanner;
@@ -50,35 +56,96 @@ public class MainActivity extends NavigationActivity {
 		//doStartService();
 
 		//doBindService();
-		String data = "" ;
-	
-	
-			HttpClient http = new HttpClient();
-			data = http.post("http://demo.coder.com.tw/ibeacon/api/getinfo.php", 
-							"major=10&minor=1&uuid=15345164-67AB-3E49-F9D6-E29000000007");
-			System.out.println(data);
+		initWebView();
 		
-		webView.getSettings().setJavaScriptEnabled(true);
-		webView.setWebViewClient(webViewClient);
-		webView.loadUrl("http://demo.coder.com.tw/ibeacon/webview/index.html");
+		String res = "" ;
+	
+		HttpClient http = new HttpClient();
+		res = http.post("http://demo.coder.com.tw/ibeacon/api/getinfo.php", 
+							"major=10&minor=1&uuid=15345164-67AB-3E49-F9D6-E29000000007");		
 		
+		showContentToWebView("http://demo.coder.com.tw/ibeacon/webview/index.html",
+				"15345164-67AB-3E49-F9D6-E29000000007",10,10,"foundBeacon", res );
 		
 	}
 	
-	WebViewClient webViewClient = new WebViewClient() {
-		int a = 0;
+	private void showContentToWebView(String url,String uuid, int major,int minor, String funcName, String input) {
+		bwvc.setJSONContent(input);
+		webView.loadUrl(url+"?funcName="+funcName
+							+"&uuid="+uuid
+							+"&major="+major
+							+"&minor="+minor);
+	}
+	
+	private void initWebView() {
+		webView.getSettings().setJavaScriptEnabled(true);
+		webView.setWebViewClient(bwvc);
+	}
+	
+	class BeaconWebViewClient extends WebViewClient{
+		protected String json = "";
+		
+		protected Map<String, String> parseFoundBeaconJSON() {
+			JSONObject obj;
+			Map<String, String> map = new HashMap<String, String>();
+			try {
+				obj = new JSONObject(json);
+				if ( obj.getString("result").equals("true")) {
+					JSONObject data = new JSONObject(obj.getString("data"));
+					map.put("client_name", data.getString("client_name"));
+					map.put("client_image", data.getString("client_image"));
+					map.put("youtube", data.getString("youtube"));
+					map.put("content", data.getString("content"));
+				}
+			} catch (JSONException e ) {
+				e.printStackTrace();
+			}
+			return map;
+		}
+				
+		public void setJSONContent(String ct) {
+			json = ct;
+		}
+	}
+	
+	BeaconWebViewClient bwvc = new BeaconWebViewClient() {
+		
+		private Map<String, String> getQueryMap(String query)
+		{
+		    String[] params = query.split("&");
+		    Map<String, String> map = new HashMap<String, String>();
+		    for (String param : params)
+		    {
+		        String name = param.split("=")[0];
+		        String value = param.split("=")[1];
+		        map.put(name, value);
+		    }
+		    return map;
+		}
 		
 		@Override
 		 public void onPageFinished(WebView view, String url) {
-			view.loadUrl("javascript:foundBeacon(\'15345164-67AB-3E49-F9D6-E29000000007_10_1\',"
-					+ "\'城市花園\',"
-					+ "\'http://demo.coder.com.tw/ibeacon/upload/tag_content/1422616760.jpg,"
-					+ "http://demo.coder.com.tw/ibeacon/upload/tag_content/1422616764.jpg,"
-					+ "http://demo.coder.com.tw/ibeacon/upload/tag_content/1422616768.jpg\',"
-					+ "\'\',"
-					+ "\'sgsdgsdg\');");
-		 }
-		
+			String[] data = url.split("\\?");
+			Map parm = getQueryMap(data[1]);
+			String funcName = (String) parm.get("funcName");
+			String uuid = (String) parm.get("uuid");
+			String major = (String) parm.get("major");
+			String minor = (String) parm.get("minor");
+			
+			
+			if ( funcName.equals("foundBeacon") ) {
+				Map<String, String> map = parseFoundBeaconJSON();
+				view.loadUrl("javascript:foundBeacon("
+						+ "\'" + uuid + "_" + major + "_" + minor  + "\',"
+						+ "\'" + map.get("client_name") + "\',"
+						+ "\'" + map.get("client_image")+ "\',"
+						+ "\'" + map.get("content")	 	+ "\',"
+						+ "\'" + map.get("youtube") 	+ "\');");	
+					
+			} else if ( funcName.equals("removeBeacon") ) {
+				
+			}
+		}
 	};
 
 	@Override
