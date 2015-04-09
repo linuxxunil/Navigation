@@ -42,13 +42,18 @@ public class BeaconList {
 		return (Beacon) list.get(key);
 	}
 	
+	public Beacon get(String uuid, int major, int minor) {
+		String key = uuid + major + minor;
+		return (Beacon) list.get(key);
+	}
+	
 	public int register(String mac, String uuid, int major, int minor, int interval, int distance) {
 		String key = mac + uuid + major + minor;
-		
 		if ( list.put(key,
 				new Beacon(mac, uuid, major, minor, interval, distance)) == null ) {
 			length++;
-		} else return -1; // already register
+		} else return -1; // already register*/
+		
 		return 0;
 	}
 	

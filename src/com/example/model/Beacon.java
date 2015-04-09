@@ -12,7 +12,7 @@ public class Beacon {
 	private int rssi;
 	private int interval = 3; // for default
 	private int count = interval;
-	private double distance = 2; // for notify use, default = 3 meter
+	private double notifyDistance = 10; // for notify use, default = 3 meter
 	static private int benchmark = -64; 
 	static private double n = 2.92;
 
@@ -34,7 +34,7 @@ public class Beacon {
 		initParameter(mac, uuid, major, minor);
 		this.interval = interval;
 		this.count = interval;
-		this.distance = distance;
+		this.notifyDistance = distance;
 	}
 	
 	public Beacon (String mac, String uuid, int major, int minor) {
@@ -68,6 +68,14 @@ public class Beacon {
 	
 	public String getMAC() {
 		return mac;
+	}
+	
+	public double getNotifyDistance() {
+		return notifyDistance;
+	}
+	
+	public void setNotifyDistance(double dist) {
+		notifyDistance = dist;
 	}
 	
 	public int getMonitorStatus() {
@@ -113,12 +121,5 @@ public class Beacon {
 	
 	public void setInterval(int time) {
 		interval = time;
-	}
-	
-	public double getNotifyDistance() {
-		return distance;
-	}
-	
-	
-	
+	}	
 }

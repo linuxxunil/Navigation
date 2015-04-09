@@ -28,7 +28,7 @@ public class BeaconService extends NavigationService {
 	private final String CLASSNAME = this.getClass().getName();
 	public static final int MSG_REG_CLIENT = 1;
 	public static final int MSG_UNREG_CLIENT = 2;
-	public static final int MSG_PERIOD = 3;
+	public static final int MSG_BEACON_CONF = 3;
 
 	private Handler handler = null;
 	private Messenger serviceMsger = null;
@@ -38,9 +38,12 @@ public class BeaconService extends NavigationService {
 
 	// for test
 	private void initBeaconList(BeaconList list) {
-		list.register("B4:99:4C:50:46:39",
-								"15345164-67ab-3e49-f9d6-e29000000008", 0,
-								65535, 3, 3);
+		list.register("","15345164-67ab-3e49-f9d6-e29000000008", 0,
+							65535, 3, 0);
+			
+		//list.register("B4:99:4C:50:46:39",
+		//						"15345164-67ab-3e49-f9d6-e29000000008", 0,
+		//						65535, 3, 3);
 	}
 
 	@Override
@@ -80,7 +83,8 @@ public class BeaconService extends NavigationService {
 					activityMsger = null;
 					break;
 
-				case MSG_PERIOD:
+				case MSG_BEACON_CONF:
+					setBeaconConfig(msg.getData());
 					break;
 				default:
 					// ignore
@@ -91,11 +95,28 @@ public class BeaconService extends NavigationService {
 		serviceMsger = new Messenger(handler);
 	}
 
-	void doScanBeacon() {
+	private void setBeaconConfig(Bundle data) {
+		
+		int size = Integer.valueOf(data.getString("size"));
+		for ( int i=0; i<size; i++) {
+			String uuid = data.getString("uuid["+i+"]");
+			int major = Integer.valueOf(data.getString("major["+i+"]"));
+			//int minor = Integer.valueOf(data.getString("minor["+i+"]"));
+			// for test
+			int minor = 65535; 
+			
+			if ( beaconList.contains("",uuid, major, minor)) {
+				Beacon beacon = beaconList.get(uuid, major, minor);
+				double dist = Double.valueOf(data.getString("dist["+i+"]"));
+				beacon.setNotifyDistance(dist);
+			}
+		}
+	}
+	
+	private void doScanBeacon() {
 
 		new Thread() {
 			private Bundle notifyList = new Bundle();
-			
 			
 			BeaconScanner bs = new BeaconScanner(getApplicationContext(),
 					new LeScanCallback() {
@@ -140,7 +161,8 @@ public class BeaconService extends NavigationService {
 							String uuid = getUUID(scanRecord);
 							int major = getMajor(scanRecord);
 							int minor = getMinor(scanRecord);
-							String mac = device.getAddress();
+							//String mac = device.getAddress();
+							String mac = "";
 
 							// beacon exists on beaconList and monitor type
 							// isn't Monitor.LEAVE
@@ -169,6 +191,7 @@ public class BeaconService extends NavigationService {
 										// send notification
 										if (distance <= beacon
 												.getNotifyDistance()) {
+											System.out.println(beacon.getNotifyDistance());
 											beacon.setMonitorStatus(Beacon.Monitor.ENTERSCOPE);
 											
 											Log.i(CLASSNAME,"add ENTERSCOPE NList");
@@ -203,7 +226,6 @@ public class BeaconService extends NavigationService {
 					if (beacon != null
 							&& beacon.getMonitorStatus() != Beacon.Monitor.LEAVE) {
 						int c = beacon.doCount();
-						System.out.println(c);
 						if (c <= 0) {
 							beacon.setMonitorStatus(Beacon.Monitor.LEAVE);
 							Log.i(CLASSNAME, "add Leave NList");
