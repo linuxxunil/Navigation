@@ -7,6 +7,8 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import android.os.AsyncTask;
@@ -97,6 +99,16 @@ public class HttpClient {
 		}	 
 	}
 	
+	static public Map<String, String> httpParmToMap(String content) {
+		String[] params = content.split("&");
+		Map<String, String> map = new HashMap<String, String>();
+		for (String param : params) {
+			String name = param.split("=")[0];
+			String value = param.split("=")[1];
+			map.put(name, value);
+		}
+		return map;
+	}
 }
 /*
 public class HttpClient {

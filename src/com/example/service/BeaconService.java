@@ -1,15 +1,24 @@
 package com.example.service;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
+import com.example.activity.MainActivity;
 import com.example.model.Beacon;
+import com.example.model.BeaconConfig;
 import com.example.model.BeaconList;
+import com.example.model.BeaconNotification;
 import com.example.model.BeaconScanner;
+import com.example.navigation.R;
 
 import android.annotation.TargetApi;
+import android.app.ActivityManager;
+import android.app.ActivityManager.RunningTaskInfo;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.Build;
@@ -29,7 +38,9 @@ public class BeaconService extends NavigationService {
 	public static final int MSG_REG_CLIENT = 1;
 	public static final int MSG_UNREG_CLIENT = 2;
 	public static final int MSG_BEACON_CONF = 3;
-
+	
+	
+	private Intent intent = null;
 	private Handler handler = null;
 	private Messenger serviceMsger = null;
 	private Messenger activityMsger = null;
@@ -38,8 +49,28 @@ public class BeaconService extends NavigationService {
 
 	// for test
 	private void initBeaconList(BeaconList list) {
-		list.register("","15345164-67ab-3e49-f9d6-e29000000008", 0,
-							65535, 3, 0);
+		String path = "/sdcard/data/navigation.cfg";
+		Map<String, String> cfg = BeaconConfig.getBeaconConfig(path);
+		
+		if ( cfg == null ) {
+			BeaconNotification.send(getApplicationContext(),"Cfg Not Found:"+path);
+		}
+		
+		int size = Integer.valueOf(cfg.get("size"));
+		
+		
+		for (int i=0; i<size; i++) {
+			list.register("", 
+					cfg.get("uuid["+i+"]"),
+					Integer.valueOf(cfg.get("major["+i+"]")),
+					Integer.valueOf(cfg.get("minor["+i+"]")),
+					Integer.valueOf(cfg.get("interval["+i+"]")),
+					Integer.valueOf(cfg.get("distance["+i+"]")));
+			
+		}
+		
+		//list.register("","15345164-67ab-3e49-f9d6-e29000000008", 0,
+		//					10, 10, 0);
 			
 		//list.register("B4:99:4C:50:46:39",
 		//						"15345164-67ab-3e49-f9d6-e29000000008", 0,
@@ -52,6 +83,7 @@ public class BeaconService extends NavigationService {
 		// for test
 		initBeaconList(beaconList);
 		initHandler();
+		intent = new Intent(this, MainActivity.class);
 	}
 
 	@Override
@@ -65,6 +97,19 @@ public class BeaconService extends NavigationService {
 		return 0;
 	}
 
+	public boolean isMainActivityRunning(String packageName) {
+	    ActivityManager activityManager = (ActivityManager) getSystemService (Context.ACTIVITY_SERVICE);
+	    List<RunningTaskInfo> tasksInfo = activityManager.getRunningTasks(Integer.MAX_VALUE); 
+	   
+	    for (int i = 0; i < tasksInfo.size(); i++) {
+	    	System.out.println(tasksInfo.get(i).baseActivity.getPackageName().toString());
+	        if (tasksInfo.get(i).baseActivity.getPackageName().toString().equals(packageName))
+	            return true;
+	    }
+
+	    return false;
+	} 
+	
 	@Override
 	protected void initHandler() {
 		handler = new Handler() {
@@ -101,9 +146,7 @@ public class BeaconService extends NavigationService {
 		for ( int i=0; i<size; i++) {
 			String uuid = data.getString("uuid["+i+"]");
 			int major = Integer.valueOf(data.getString("major["+i+"]"));
-			//int minor = Integer.valueOf(data.getString("minor["+i+"]"));
-			// for test
-			int minor = 65535; 
+			int minor = Integer.valueOf(data.getString("minor["+i+"]")); 
 			
 			if ( beaconList.contains("",uuid, major, minor)) {
 				Beacon beacon = beaconList.get(uuid, major, minor);
@@ -117,6 +160,7 @@ public class BeaconService extends NavigationService {
 
 		new Thread() {
 			private Bundle notifyList = new Bundle();
+			int count = 10;
 			
 			BeaconScanner bs = new BeaconScanner(getApplicationContext(),
 					new LeScanCallback() {
@@ -164,6 +208,19 @@ public class BeaconService extends NavigationService {
 							//String mac = device.getAddress();
 							String mac = "";
 
+							
+							// for test : 只判斷 uuid 
+							if ( beaconList.contains(uuid) ) {
+								if ( BeaconNotification.isRegister() ) {
+									
+									if ( count++ > 5 ) {
+										BeaconNotification.send(getApplicationContext(), "Found UUID:"+uuid);
+										count = 0;
+									}
+								}
+							}
+							
+							
 							// beacon exists on beaconList and monitor type
 							// isn't Monitor.LEAVE
 							if (beaconList.contains(mac, uuid, major, minor)) {
@@ -173,25 +230,26 @@ public class BeaconService extends NavigationService {
 								int status = beacon.getMonitorStatus();
 								// reset count
 								beacon.resetCount();
-
+								
 								if (status == Beacon.Monitor.LEAVE) {
 									Log.i(CLASSNAME, "FOUND");
 									beacon.setMonitorStatus(Beacon.Monitor.FOUND);
 									
 									Log.i(CLASSNAME, "add FOUND NList");
+									
 									notifyList.putBundle(
 											String.valueOf(notifyList.size()+1),
 											toBundle(beacon,rssi));
+									
 								} else {
 									if (status == Beacon.Monitor.FOUND) {
 										double distance = beacon
-												.toDistable(rssi);
+												.toDistance(rssi);
 
 										// when distance < define value , then
 										// send notification
 										if (distance <= beacon
 												.getNotifyDistance()) {
-											System.out.println(beacon.getNotifyDistance());
 											beacon.setMonitorStatus(Beacon.Monitor.ENTERSCOPE);
 											
 											Log.i(CLASSNAME,"add ENTERSCOPE NList");
@@ -226,6 +284,7 @@ public class BeaconService extends NavigationService {
 					if (beacon != null
 							&& beacon.getMonitorStatus() != Beacon.Monitor.LEAVE) {
 						int c = beacon.doCount();
+						System.out.println(c);
 						if (c <= 0) {
 							beacon.setMonitorStatus(Beacon.Monitor.LEAVE);
 							Log.i(CLASSNAME, "add Leave NList");

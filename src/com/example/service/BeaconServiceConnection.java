@@ -64,7 +64,6 @@ public class BeaconServiceConnection implements ServiceConnection {
 		
 	public void sendBeaconConfig(Map<String, String> content) {
 		Bundle bundle = new Bundle();
-		int i = 0;
 		for ( String key : content.keySet() ) {
 			bundle.putString(key, content.get(key));
 	    }

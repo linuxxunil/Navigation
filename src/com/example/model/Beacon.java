@@ -10,9 +10,9 @@ public class Beacon {
 	private int minor;
 	private int monitor = Monitor.LEAVE;
 	private int rssi;
-	private int interval = 3; // for default
+	private int interval = 5; // for default
 	private int count = interval;
-	private double notifyDistance = 10; // for notify use, default = 3 meter
+	private double notifyDistance = 10; // for notify use, default = 10 meter
 	static private int benchmark = -64; 
 	static private double n = 2.92;
 
@@ -49,7 +49,7 @@ public class Beacon {
 		benchmark = dBmAtOneMeter;
 	}
 
-	public double toDistable(double rssi) {
+	public double toDistance(double rssi) {
 		double tmp = -(rssi - benchmark) / (10 * n);
 		return Math.pow(10, tmp);
 	}
