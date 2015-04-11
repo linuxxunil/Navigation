@@ -260,7 +260,7 @@ public class BeaconService extends NavigationService {
 									}
 								}
 							} else {
-								Log.i(CLASSNAME, "The beacon hasn't register");
+								Log.i(CLASSNAME, "The beacon hasn't register:"+uuid+major+minor);
 							}
 						}
 					});

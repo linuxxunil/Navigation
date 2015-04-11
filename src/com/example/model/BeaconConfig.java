@@ -30,6 +30,7 @@ public class BeaconConfig {
 					cfg.put("minor["+i+"]", str[2]);
 					cfg.put("interval["+i+"]", str[3]);
 					cfg.put("distance["+i+"]", str[4]);
+					i++;
 				}
 			}
 		} catch (FileNotFoundException e) {
