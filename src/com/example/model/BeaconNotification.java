@@ -14,7 +14,6 @@ public class BeaconNotification {
 	
 	static Intent intent = null;
 	static public void registerActivity(Intent it) {
-		System.out.println("reg");
 		intent = it;
 	}
 	

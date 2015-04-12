@@ -14,5 +14,6 @@ public abstract class BeaconWebViewClient extends WebViewClient {
 	@Override
 	public void onPageFinished(WebView view, String url) {
 		this.view = view;
+		
 	}
 }

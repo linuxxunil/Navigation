@@ -49,7 +49,8 @@ public class BeaconService extends NavigationService {
 
 	// for test
 	private void initBeaconList(BeaconList list) {
-		String path = "/sdcard/data/navigation.cfg";
+		String path = "/storage/emulated/0/ibeacon_cfg";
+		//String path = "/sdcard/data/navigation.cfg";
 		Map<String, String> cfg = BeaconConfig.getBeaconConfig(path);
 		
 		if ( cfg == null ) {
@@ -66,7 +67,6 @@ public class BeaconService extends NavigationService {
 					Integer.valueOf(cfg.get("minor["+i+"]")),
 					Integer.valueOf(cfg.get("interval["+i+"]")),
 					Integer.valueOf(cfg.get("distance["+i+"]")));
-			
 		}
 		
 		//list.register("","15345164-67ab-3e49-f9d6-e29000000008", 0,
@@ -96,19 +96,6 @@ public class BeaconService extends NavigationService {
 		doScanBeacon();
 		return 0;
 	}
-
-	public boolean isMainActivityRunning(String packageName) {
-	    ActivityManager activityManager = (ActivityManager) getSystemService (Context.ACTIVITY_SERVICE);
-	    List<RunningTaskInfo> tasksInfo = activityManager.getRunningTasks(Integer.MAX_VALUE); 
-	   
-	    for (int i = 0; i < tasksInfo.size(); i++) {
-	    	System.out.println(tasksInfo.get(i).baseActivity.getPackageName().toString());
-	        if (tasksInfo.get(i).baseActivity.getPackageName().toString().equals(packageName))
-	            return true;
-	    }
-
-	    return false;
-	} 
 	
 	@Override
 	protected void initHandler() {
@@ -207,9 +194,11 @@ public class BeaconService extends NavigationService {
 							int minor = getMinor(scanRecord);
 							//String mac = device.getAddress();
 							String mac = "";
+							boolean lowBatteryFlg = false;
 
 							
 							// for test : 只判斷 uuid 
+							/*
 							if ( beaconList.contains(uuid) ) {
 								if ( BeaconNotification.isRegister() ) {
 									
@@ -218,15 +207,25 @@ public class BeaconService extends NavigationService {
 										count = 0;
 									}
 								}
+							}*/
+							
+							if ( major > 127 ) {
+								lowBatteryFlg = true;
+								major &= 0x000000FF;
 							}
-							
-							
+										
 							// beacon exists on beaconList and monitor type
 							// isn't Monitor.LEAVE
 							if (beaconList.contains(mac, uuid, major, minor)) {
 								Log.i(CLASSNAME, "Monitor");
 								Beacon beacon = beaconList.get(mac, uuid,
-										major, minor);
+														major, minor);
+								
+								if ( lowBatteryFlg)
+									beacon.setBatteryFlg(true);
+								else
+									beacon.setBatteryFlg(false);
+								
 								int status = beacon.getMonitorStatus();
 								// reset count
 								beacon.resetCount();
@@ -239,23 +238,25 @@ public class BeaconService extends NavigationService {
 									
 									notifyList.putBundle(
 											String.valueOf(notifyList.size()+1),
-											toBundle(beacon,rssi));
+												toBundle(beacon, rssi));
+												
 									
 								} else {
 									if (status == Beacon.Monitor.FOUND) {
 										double distance = beacon
 												.toDistance(rssi);
-
+										
 										// when distance < define value , then
 										// send notification
 										if (distance <= beacon
 												.getNotifyDistance()) {
+											
 											beacon.setMonitorStatus(Beacon.Monitor.ENTERSCOPE);
 											
 											Log.i(CLASSNAME,"add ENTERSCOPE NList");
 											notifyList.putBundle(
 													String.valueOf(notifyList.size()+1),
-													toBundle(beacon,rssi));
+														toBundle(beacon, rssi));
 										}
 									}
 								}
@@ -269,6 +270,8 @@ public class BeaconService extends NavigationService {
 				Bundle bundle = new Bundle();
 				bundle.putString("mac", beacon.getMAC());
 				bundle.putString("uuid", beacon.getUUID());
+				
+				int major = beacon.getMajor();
 				bundle.putString("major", String.valueOf(beacon.getMajor()));
 				bundle.putString("minor", String.valueOf(beacon.getMinor()));
 				bundle.putString("minitorStatus", String.valueOf(beacon.getMonitorStatus()));
@@ -290,7 +293,7 @@ public class BeaconService extends NavigationService {
 							Log.i(CLASSNAME, "add Leave NList");
 							notifyList.putBundle(
 									String.valueOf(notifyList.size()+1),
-									toBundle(beacon,-1));
+									toBundle(beacon, -1));
 						}
 					} else {
 						// Beacon type is leave , don't do anything 

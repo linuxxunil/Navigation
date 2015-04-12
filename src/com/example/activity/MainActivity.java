@@ -57,6 +57,7 @@ public class MainActivity extends NavigationActivity {
 	// for test
 	private String url = "http://demo.coder.com.tw/ibeacon/api";
 	private String jsURL = "http://demo.coder.com.tw/ibeacon/webview/index.html";
+	private boolean tst = false;
 
 	@TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
 	@Override
@@ -72,16 +73,19 @@ public class MainActivity extends NavigationActivity {
 
 		beaconServiceConn = new BeaconServiceConnection(activityMsger);
 		
-		doBindService(beaconServiceConn);
-
 		initWebView();
+		
+	
+		doBindService(beaconServiceConn);
 	}
 	
 
 	
 	private void initWebView() {
 		webView.getSettings().setJavaScriptEnabled(true);
+		webView.getSettings().setAppCacheEnabled(false);
 		webView.setWebViewClient(bwvc);
+		webView.clearCache(true);
 		webView.loadUrl(jsURL);
 	}
 
@@ -239,7 +243,11 @@ public class MainActivity extends NavigationActivity {
 								String funcName, Map<String, String> parm) {
 			
 			if (funcName.equals("foundBeacon")) {
+				
 				System.out.println("Execute JS (FoundBeacon)");
+				
+				if ( view == null)
+					return;
 				view.loadUrl("javascript:foundBeacon(" + "\'" + uuid + "_"
 						+ major + "_" + minor + "\'," + "\'"
 						+ parm.get("client_name") + "\'," + "\'"
