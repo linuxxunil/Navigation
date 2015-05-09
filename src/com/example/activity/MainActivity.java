@@ -10,6 +10,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.example.logging.LogCode;
+import com.example.logging.LogString;
 import com.example.model.Beacon;
 import com.example.model.BeaconNotification;
 import com.example.model.BeaconScanner;
@@ -22,6 +24,7 @@ import com.example.service.NavigationService;
 
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
+import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.Notification.Builder;
 import android.app.NotificationManager;
@@ -41,13 +44,15 @@ import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
 import android.util.Log;
+import android.view.View;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Button;
 import android.widget.TextView;
 
 public class MainActivity extends NavigationActivity {
 	private final String CLASSNAME = this.getClass().getName();
-	
+
 	private Messenger activityMsger = null;
 	private BeaconServiceConnection beaconServiceConn = null;
 	private Handler handler = null;
@@ -58,12 +63,34 @@ public class MainActivity extends NavigationActivity {
 	private String url = "http://demo.coder.com.tw/ibeacon/api";
 	private String jsURL = "http://demo.coder.com.tw/ibeacon/webview/index.html";
 	private boolean tst = false;
+	private Button bt = null;
 
 	@TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
+		
+		// for test
+		bt = (Button) findViewById(R.id.button1);
+
+		bt.setOnClickListener(new Button.OnClickListener() {
+
+			@Override
+			public void onClick(View v) {
+				Context context = getApplicationContext();
+				Intent restartIntent = context.getPackageManager()
+			            .getLaunchIntentForPackage(context.getPackageName() );
+			    PendingIntent intent = PendingIntent.getActivity(
+			            context, 0,
+			            restartIntent, Intent.FLAG_ACTIVITY_CLEAR_TOP);
+			    AlarmManager manager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+			    manager.set(AlarmManager.RTC, System.currentTimeMillis() + 2, intent);
+			    System.exit(2);
+			}
+		});
+		
+		// for test end
 
 		webView = (WebView) findViewById(R.id.webview);
 
@@ -72,15 +99,12 @@ public class MainActivity extends NavigationActivity {
 		doStartService();
 
 		beaconServiceConn = new BeaconServiceConnection(activityMsger);
-		
+
 		initWebView();
-		
-	
+
 		doBindService(beaconServiceConn);
 	}
-	
 
-	
 	private void initWebView() {
 		webView.getSettings().setJavaScriptEnabled(true);
 		webView.getSettings().setAppCacheEnabled(false);
@@ -89,18 +113,18 @@ public class MainActivity extends NavigationActivity {
 		webView.loadUrl(jsURL);
 	}
 
-
 	@Override
 	protected void onPause() {
 		super.onPause();
 		BeaconNotification.registerActivity(getIntent());
 	}
+
 	@Override
 	protected void onResume() {
 		super.onResume();
 		BeaconNotification.unregisterActivity();
 	}
-	
+
 	@Override
 	protected void onDestroy() {
 		super.onDestroy();
@@ -147,16 +171,16 @@ public class MainActivity extends NavigationActivity {
 					if (obj.getString("result").equals("true")) {
 						JSONArray array = new JSONArray(obj.getString("data"));
 						map.put("size", String.valueOf(array.length()));
-						
-						for (int i=0; i<array.length(); i++) {	
+
+						for (int i = 0; i < array.length(); i++) {
 							JSONObject data = array.getJSONObject(i);
-							//map.put("mac["+i+"]", data.getString("mac"));
-							map.put("dist["+i+"]", data.getString("dist"));
-							map.put("uuid["+i+"]", data.getString("uuid"));
-							map.put("major["+i+"]", data.getString("major"));
-							map.put("minor["+i+"]", data.getString("minor"));
+							map.put("mac["+i+"]", data.getString("mac"));
+							map.put("dist[" + i + "]", data.getString("dist"));
+							map.put("uuid[" + i + "]", data.getString("uuid"));
+							map.put("major[" + i + "]", data.getString("major"));
+							map.put("minor[" + i + "]", data.getString("minor"));
 						}
-						
+
 					}
 				} catch (JSONException e) {
 					e.printStackTrace();
@@ -164,24 +188,6 @@ public class MainActivity extends NavigationActivity {
 				return map;
 			}
 
-			private Map<String, String> parseGetInfo(String json) {
-				JSONObject obj;
-				Map<String, String> map = new HashMap<String, String>();
-				try {
-					obj = new JSONObject(json);
-					if (obj.getString("result").equals("true")) {
-						JSONObject data = new JSONObject(obj.getString("data"));
-						map.put("client_name", data.getString("client_name"));
-						map.put("client_image", data.getString("client_image"));
-						map.put("youtube", data.getString("youtube"));
-						map.put("content", data.getString("content"));
-					}
-				} catch (JSONException e) {
-					e.printStackTrace();
-				}
-				return map;
-			}
-			
 			@Override
 			public void handleMessage(Message msg) {
 				Bundle list = msg.getData();
@@ -198,7 +204,7 @@ public class MainActivity extends NavigationActivity {
 					String major = beacon.getString("major");
 					String rssi = beacon.getString("rssi");
 					String minor = beacon.getString("minor");
-					
+
 					if (status == Beacon.Monitor.FOUND) {
 
 						if (isExecuteFound == false) {
@@ -212,21 +218,24 @@ public class MainActivity extends NavigationActivity {
 								+ uuid;
 
 					} else if (status == Beacon.Monitor.LEAVE) {
-						bwvc.doJavaScript(uuid, major, minor, "removeBeacon", null);
+						bwvc.doJsRemoveBeacon(uuid, major, minor);
 					} else if (status == Beacon.Monitor.ENTERSCOPE) {
 						String parm2 = "uuid=" + uuid + "&" + "major=" + major
 								+ "&" + "minor=" + minor;
-						String json = http.post(url + "/getinfo.php", parm2);
-						Map result = parseGetInfo(json);
-						bwvc.doJavaScript(uuid, major, minor, "foundBeacon", result);
+						LogString string = http.post(url + "/getinfo.php", parm2);
+						if ( string.status == LogCode.success ) {
+							bwvc.doJsFoundBeacon(string.value);
+						}
 					}
 				}
 
 				if (isExecuteFound) {
-					String json = http.post(url + "/getconfig.php", parm);
-
-					Map result = parseGetConfig(json);
-					beaconServiceConn.sendBeaconConfig(result);
+					LogString string = http.post(url + "/getconfig.php", parm);
+					
+					if ( string.status == LogCode.success ) {
+						Map result = parseGetConfig(string.value);
+						beaconServiceConn.sendBeaconConfig(result);
+					}
 				}
 			}
 		};
@@ -237,30 +246,19 @@ public class MainActivity extends NavigationActivity {
 	 * Handle JS
 	 */
 	BeaconWebViewClient bwvc = new BeaconWebViewClient() {
-		
-		@Override
-		public void doJavaScript(String uuid, String major,String minor,
-								String funcName, Map<String, String> parm) {
-			
-			if (funcName.equals("foundBeacon")) {
-				
-				System.out.println("Execute JS (FoundBeacon)");
-				
-				if ( view == null)
-					return;
-				view.loadUrl("javascript:foundBeacon(" + "\'" + uuid + "_"
-						+ major + "_" + minor + "\'," + "\'"
-						+ parm.get("client_name") + "\'," + "\'"
-						+ parm.get("client_image") + "\'," + "\'"
-						+ parm.get("content") + "\'," + "\'"
-						+ parm.get("youtube") + "\');");
 
-			} else if (funcName.equals("removeBeacon")) {
-				System.out.println("Execute JS (RemoveBeacon)");
-				view.loadUrl("javascript:removeBeacon(" + "\'" + uuid + "_"
-						+ major + "_" + minor + "\');");
-			}
-		}		
-		
+		@Override
+		public void doJsFoundBeacon(String json) {
+			if (view == null)
+				return;
+			view.loadUrl("javascript:foundBeacon(" + "\'" + json + "\')");
+		}
+
+		@Override
+		public void doJsRemoveBeacon(String uuid, String major, String minor) {
+			view.loadUrl("javascript:removeBeacon("+ uuid +","
+												   + major + ","
+												   + minor + ")");
+		}
 	};
 }

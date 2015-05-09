@@ -6,13 +6,15 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-import android.os.AsyncTask;
+import com.example.logging.LogString;
+import com.example.logging.Log;
+import com.example.logging.LogCode;
 
+import android.os.AsyncTask;
 
 
 public class HttpClient {
@@ -22,77 +24,90 @@ public class HttpClient {
 	public HttpClient() {
 	}
 
-	private void initHttp(String host, String method)
-			throws MalformedURLException, IOException {
-		url = new URL(host);
-		httpConn = (HttpURLConnection) url.openConnection();
-		httpConn.setRequestMethod(method);
-		httpConn.setRequestProperty("content-type",
-				"application/x-www-form-urlencoded; charset=utf-8");
-		httpConn.setRequestProperty("host", url.getHost());
-		httpConn.setDoOutput(true);
-		httpConn.setDoInput(true);
+	private int initHttp(String host, String method) {
+		try {
+			url = new URL(host);
+			httpConn = (HttpURLConnection) url.openConnection();
+			httpConn.setRequestMethod(method);
+			httpConn.setRequestProperty("content-type",
+					"application/x-www-form-urlencoded; charset=utf-8");
+			httpConn.setRequestProperty("host", url.getHost());
+			httpConn.setDoOutput(true);
+			httpConn.setDoInput(true);
+		} catch (MalformedURLException e1) {
+			return Log.e(this, LogCode.ERR_MALFORMED_FAIL);
+		} catch (IOException e2) {
+			return Log.e(this, LogCode.ERR_HTTP_ATTR_SETTING_FAIL);
+		}
+		return LogCode.success;
 	}
 
-	private void connect() throws IOException {
-		httpConn.connect();
+	private int connect() {
+		try {
+			httpConn.connect();
+		} catch (IOException e) {
+			return Log.e(this, LogCode.WAR_CONNECT_FAIL);
+		}
+		return LogCode.success;
 	}
 
 	private void disconnect() {
 		httpConn.disconnect();
 	}
 	
-	private String doPost(final String host, final String content) {
+	private LogString doPost(final String host, final String content) {
 		String cv = "";
 		int status = 0;
 		OutputStream os;
+		
+		if ((status = initHttp(host, "POST"))
+							!= LogCode.success ) 
+			return new LogString(status);
+		
+		if ((status = connect())
+							!= LogCode.success) 
+			return new LogString(status);
+		
 		try {
-			initHttp(host, "POST");
-			connect();
-					
 			os = httpConn.getOutputStream();
 			os.write(content.getBytes());
 			status = httpConn.getResponseCode();
-					
+		
 			if (status == HttpURLConnection.HTTP_OK) {
-
 				InputStream is = httpConn.getInputStream();
 				byte[] data = new byte[1024];
 				int idx = is.read(data);
 				cv = new String(data, 0, idx);
-						
+					
 				is.close();
 				os.close();
 				disconnect();
 			}
-		} catch (MalformedURLException e) {
-			System.out.println(e.getMessage());
 		} catch (IOException e) {
-			System.out.println(e.getMessage());
+			return new LogString(Log.e(this, LogCode.ERR_HTTP_WRITE_CONTENT_FAIL));
 		}
-		return cv;
+		return new LogString(status, cv);
 	}
 
-	public String post(final String host, final String content)  {
-		
+	public LogString post(final String host, final String content)  {
+		LogString logStr = null;
 		BackGround bg = new BackGround();
 		bg.execute(host,content);
+		
 		try {
-			return bg.get();
+			logStr = bg.get();
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			return new LogString(Log.e(this, LogCode.ERR_HTTP_INTERRUPT));
 		} catch (ExecutionException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			return new LogString(Log.e(this, LogCode.ERR_HTTP_EXECUTE_FAIL));
 		}
-		return null;
+		return logStr;
 	}
 
-	private class BackGround extends AsyncTask <String, String, String> {
+	private class BackGround extends AsyncTask <String, String, LogString> {
 
 		@Override
-		protected String doInBackground(String... params) {
+		protected LogString doInBackground(String... params) {
 			String host = params[0];
 			String content = params[1];
 			return doPost(host,content);
@@ -109,67 +124,4 @@ public class HttpClient {
 		}
 		return map;
 	}
-}
-/*
-public class HttpClient {
-	static private URL url = null;
-	static private HttpURLConnection httpConn = null;
-	
-	public HttpClient(String url) {
-	}
-
-	static private void initHttp(String host, String method)
-			throws MalformedURLException, IOException {
-		url = new URL(host);
-		httpConn = (HttpURLConnection) url.openConnection();
-		httpConn.setRequestMethod(method);
-		httpConn.setRequestProperty("content-type",
-				"application/x-www-form-urlencoded; charset=utf-8");
-		httpConn.setRequestProperty("host", url.getHost());
-		httpConn.setDoOutput(true);
-		httpConn.setDoInput(true);
-	}
-
-	static private void connect() throws IOException {
-		httpConn.connect();
-	}
-
-	static private void disconnect() {
-		httpConn.disconnect();
-	}
-
-	static public String post(final String host, final String content) 
-								throws MalformedURLException, IOException {
-
-		String cv = "";
-		int status = 0;
-		OutputStream os;
-		try {
-			initHttp(host, "POST");
-			connect();
-					
-			os = httpConn.getOutputStream();
-			os.write(content.getBytes());
-			status = httpConn.getResponseCode();
-					
-			if (status == HttpURLConnection.HTTP_OK) {
-
-				InputStream is = httpConn.getInputStream();
-				byte[] data = new byte[1024];
-				int idx = is.read(data);
-				cv = new String(data, 0, idx);
-						
-				is.close();
-				os.close();
-				disconnect();
-			}
-		} catch (MalformedURLException e) {
-			System.out.println(e.getMessage());
-		} catch (IOException e) {
-			System.out.println(e.getMessage());
-		}
-		return cv;
-	}
-
-}
-*/
+}	

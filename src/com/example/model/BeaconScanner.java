@@ -33,6 +33,5 @@ public class BeaconScanner {
 	public void stop() {
 		if (mBluetoothAdapter.isEnabled())
 			mBluetoothAdapter.stopLeScan(callback);
-		
 	}
 }

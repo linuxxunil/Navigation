@@ -1,10 +1,11 @@
 package com.example.model;
 
-import java.util.ArrayList;
 import java.util.Hashtable;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
+
+import com.example.logging.Log;
+import com.example.logging.LogBeacon;
+import com.example.logging.LogCode;
 
 public class BeaconList {
 	private Map list = new Hashtable<String,Beacon>();
@@ -19,7 +20,6 @@ public class BeaconList {
 	}
 	
 	public boolean contains(String uuid) {
-	
 		for (Object key :  list.keySet()) {
 			String value = (String)key;
 			if ( value.startsWith(uuid) ) {
@@ -38,7 +38,7 @@ public class BeaconList {
 	 * @param i : start is one
 	 * @return beacon,or null if i greater than length
 	 */
-	public Beacon get(int i) {
+	public LogBeacon get(int i) {
 		if ( i > length ) return null;
 		Beacon beacon = null;
 		int j = 1;
@@ -55,28 +55,22 @@ public class BeaconList {
 		return (Beacon) list.get(key);
 	}
 	
-	public Beacon get(String uuid, int major, int minor) {
-		String key = uuid + major + minor;
-		return (Beacon) list.get(key);
-	}
-	
-	public int register(String mac, String uuid, int major, int minor, int interval, int distance) {
+	public int register(String mac, String uuid, int major, int minor) {
 		String key = mac + uuid + major + minor;
-		System.out.println(key);
 		if ( list.put(key,
-				new Beacon(mac, uuid, major, minor, interval, distance)) == null ) {
+				new Beacon(mac, uuid, major, minor)) == null ) {
 			length++;
-		} else return -1; // already register*/
+		} else return Log.e(this, LogCode.INF_REGISTERED); // already register*/
 		
-		return 0;
+		return LogCode.success;
 	}
 	
 	public int unregister(String mac, String uuid, int major, int minor) {
 		String key = mac + uuid + major + minor;
 		if (list.remove(key) == null ) {
-			return -1; // not register
+			return Log.e(this, LogCode.INF_NOT_REGISTERED); // not register
 		} else length--;
-		return 0;
+		return LogCode.success;
 	}
 	
 	public void clear() {

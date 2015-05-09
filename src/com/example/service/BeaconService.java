@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Map;
 
 import com.example.activity.MainActivity;
+import com.example.logging.LogCode;
+import com.example.logging.Log;
 import com.example.model.Beacon;
 import com.example.model.BeaconConfig;
 import com.example.model.BeaconList;
@@ -28,7 +30,6 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
-import android.util.Log;
 import android.bluetooth.BluetoothAdapter.LeScanCallback;
 import android.bluetooth.BluetoothDevice;
 
@@ -49,8 +50,8 @@ public class BeaconService extends NavigationService {
 
 	// for test
 	private void initBeaconList(BeaconList list) {
-		String path = "/storage/emulated/0/ibeacon_cfg";
-		//String path = "/sdcard/data/navigation.cfg";
+		//String path = "/storage/emulated/0/ibeacon_cfg";
+		String path = "/sdcard/data/navigation.cfg";
 		Map<String, String> cfg = BeaconConfig.getBeaconConfig(path);
 		
 		if ( cfg == null ) {
@@ -59,22 +60,12 @@ public class BeaconService extends NavigationService {
 		
 		int size = Integer.valueOf(cfg.get("size"));
 		
-		
 		for (int i=0; i<size; i++) {
-			list.register("", 
+			list.register(cfg.get("mac["+i+"]"), 
 					cfg.get("uuid["+i+"]"),
 					Integer.valueOf(cfg.get("major["+i+"]")),
-					Integer.valueOf(cfg.get("minor["+i+"]")),
-					Integer.valueOf(cfg.get("interval["+i+"]")),
-					Integer.valueOf(cfg.get("distance["+i+"]")));
+					Integer.valueOf(cfg.get("minor["+i+"]")));
 		}
-		
-		//list.register("","15345164-67ab-3e49-f9d6-e29000000008", 0,
-		//					10, 10, 0);
-			
-		//list.register("B4:99:4C:50:46:39",
-		//						"15345164-67ab-3e49-f9d6-e29000000008", 0,
-		//						65535, 3, 3);
 	}
 
 	@Override
@@ -104,22 +95,13 @@ public class BeaconService extends NavigationService {
 			public void handleMessage(Message msg) {
 				switch (msg.what) {
 				case MSG_REG_CLIENT:
-					try {
-						activityMsger = msg.replyTo;
-					} catch (Exception e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-					break;
+					activityMsger = msg.replyTo;	
+				break;
 				case MSG_UNREG_CLIENT:
 					activityMsger = null;
-					break;
-
+				break;
 				case MSG_BEACON_CONF:
 					setBeaconConfig(msg.getData());
-					break;
-				default:
-					// ignore
 					break;
 				}
 			}
@@ -131,12 +113,13 @@ public class BeaconService extends NavigationService {
 		
 		int size = Integer.valueOf(data.getString("size"));
 		for ( int i=0; i<size; i++) {
+			String mac = data.getString("mac["+i+"]");
 			String uuid = data.getString("uuid["+i+"]");
 			int major = Integer.valueOf(data.getString("major["+i+"]"));
 			int minor = Integer.valueOf(data.getString("minor["+i+"]")); 
 			
-			if ( beaconList.contains("",uuid, major, minor)) {
-				Beacon beacon = beaconList.get(uuid, major, minor);
+			if ( beaconList.contains(mac,uuid, major, minor)) {
+				Beacon beacon = beaconList.get(mac, uuid, major, minor);
 				double dist = Double.valueOf(data.getString("dist["+i+"]"));
 				beacon.setNotifyDistance(dist);
 			}
@@ -217,24 +200,22 @@ public class BeaconService extends NavigationService {
 							// beacon exists on beaconList and monitor type
 							// isn't Monitor.LEAVE
 							if (beaconList.contains(mac, uuid, major, minor)) {
-								Log.i(CLASSNAME, "Monitor");
+								//Log.i(CLASSNAME, "Monitor");
 								Beacon beacon = beaconList.get(mac, uuid,
 														major, minor);
 								
-								if ( lowBatteryFlg)
-									beacon.setBatteryFlg(true);
-								else
-									beacon.setBatteryFlg(false);
+								if ( lowBatteryFlg) beacon.setBatteryFlg(true);
+								else beacon.setBatteryFlg(false);
 								
 								int status = beacon.getMonitorStatus();
 								// reset count
 								beacon.resetCount();
 								
 								if (status == Beacon.Monitor.LEAVE) {
-									Log.i(CLASSNAME, "FOUND");
+									//Log.i(CLASSNAME, "FOUND");
 									beacon.setMonitorStatus(Beacon.Monitor.FOUND);
 									
-									Log.i(CLASSNAME, "add FOUND NList");
+									//Log.i(CLASSNAME, "add FOUND NList");
 									
 									notifyList.putBundle(
 											String.valueOf(notifyList.size()+1),
@@ -253,7 +234,7 @@ public class BeaconService extends NavigationService {
 											
 											beacon.setMonitorStatus(Beacon.Monitor.ENTERSCOPE);
 											
-											Log.i(CLASSNAME,"add ENTERSCOPE NList");
+											//Log.i(CLASSNAME,"add ENTERSCOPE NList");
 											notifyList.putBundle(
 													String.valueOf(notifyList.size()+1),
 														toBundle(beacon, rssi));
@@ -261,7 +242,7 @@ public class BeaconService extends NavigationService {
 									}
 								}
 							} else {
-								Log.i(CLASSNAME, "The beacon hasn't register:"+uuid+major+minor);
+								//Log.i(CLASSNAME, "The beacon hasn't register:"+uuid+major+minor);
 							}
 						}
 					});
@@ -285,12 +266,13 @@ public class BeaconService extends NavigationService {
 					Beacon beacon = beaconList.get(i+1);
 					
 					if (beacon != null
-							&& beacon.getMonitorStatus() != Beacon.Monitor.LEAVE) {
+							&& beacon.getMonitorStatus() 
+									!= Beacon.Monitor.LEAVE) {
 						int c = beacon.doCount();
-						System.out.println(c);
+						
 						if (c <= 0) {
 							beacon.setMonitorStatus(Beacon.Monitor.LEAVE);
-							Log.i(CLASSNAME, "add Leave NList");
+							Log.e(this, LogCode.WAR_ADD_LEAVE_NLIST);
 							notifyList.putBundle(
 									String.valueOf(notifyList.size()+1),
 									toBundle(beacon, -1));
@@ -315,22 +297,24 @@ public class BeaconService extends NavigationService {
 						
 						if ( notifyList.size() > 0 )
 							sendMessageToActivity(notifyList);
+							
 					} catch (Exception e) {
+						//
 					}
 				}
 			}
 		}.start();
 	} 
 	
-	private void sendMessageToActivity(Bundle list) {
+	private int sendMessageToActivity(Bundle list) {
 		try {
 			Message msg = Message.obtain();
 			msg.what = 0;
 			msg.setData(list);
 			activityMsger.send(msg);
 		} catch (RemoteException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			return Log.e(this, LogCode.ERR_SEND_MSG_TO_ACTIVITY_FAIL);
 		}
+		return LogCode.success;
 	}
 }

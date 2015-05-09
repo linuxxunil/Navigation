@@ -1,15 +1,14 @@
 package com.example.model;
 
-import android.util.Log;
+import com.example.logging.Log;
+import com.example.logging.LogCode;
 
 public class Beacon {
-	private final String CLASSNAME = this.getClass().getName();
 	private String mac;
 	private String uuid;
 	private int major;
 	private int minor;
 	private int monitor = Monitor.LEAVE;
-	private int rssi;
 	private int interval = 5; // for default
 	private int count = interval;
 	private double notifyDistance = 10; // for notify use, default = 10 meter
@@ -31,21 +30,10 @@ public class Beacon {
 		this.minor = minor;
 	}
 	
-	private void initParameter(String mac, String uuid, int major, int minor, int interval, int distance) {
-		initParameter(mac, uuid, major, minor);
-		this.interval = interval;
-		this.count = interval;
-		this.notifyDistance = distance;
-	}
-	
 	public Beacon (String mac, String uuid, int major, int minor) {
 		initParameter(mac, uuid, major, minor);
 	}
 	
-	public Beacon (String mac, String uuid, int major, int minor, int interval, int distance) {
-		initParameter(mac, uuid, major, minor, interval, distance);
-	}
-
 	public void setBenchmark(int dBmAtOneMeter) {
 		benchmark = dBmAtOneMeter;
 	}
@@ -96,31 +84,28 @@ public class Beacon {
 	 * 
 	 * @param m
 	 */
-	public void setMonitorStatus(int m) {
+	public int setMonitorStatus(int m) {
 		
 		if ( m == Beacon.Monitor.FOUND || 
 				m == Beacon.Monitor.ENTERSCOPE || 
 				m == Beacon.Monitor.LEAVE) {
 			monitor = m;
-			return ;
+			return LogCode.success;
 		}
-		Log.e(CLASSNAME, "Not found monitor type");
+		return Log.e(this, LogCode.INF_NOT_FOUND_MONITOR_TYPE);
 	}
 	
 	/**
 	 * 
 	 * @return
 	 */
-	
 	public int doCount() {
-		if ( --count < 0 ) {
+		if ( --count < 0 ) 
 			count = 0;
-		}
 		return count;
 	}
 	
 	public void resetCount() {
-		Log.i(CLASSNAME, "resetCount");
 		count = interval;
 	}
 	
