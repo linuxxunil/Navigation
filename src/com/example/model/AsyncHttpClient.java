@@ -15,12 +15,12 @@ import android.os.AsyncTask;
 
 
 
-public class HttpClient {
+public class AsyncHttpClient {
 	private URL url = null;
 	private HttpURLConnection httpConn = null;
 	private static int i = 0;
 	
-	public HttpClient() {
+	public AsyncHttpClient() {
 	}
 
 	private void initHttp(String host, String method)
@@ -33,7 +33,7 @@ public class HttpClient {
 		httpConn.setRequestProperty("host", url.getHost());
 		httpConn.setDoOutput(true);
 		httpConn.setDoInput(true);
-		httpConn.setReadTimeout(10000);
+		httpConn.setReadTimeout(5000);
 	}
 
 	private void connect() throws IOException {
@@ -67,16 +67,36 @@ public class HttpClient {
 			e.getStackTrace();
 		} catch (IOException e) {
 			e.getStackTrace();
-		} 
+		}
 		return cv;
 	}
 
 	public String post(final String host, final String content)  {
 		System.out.println(host);
 		System.out.println(content);
-		String result = doPost(host,content);
-		System.out.println(result);
-		return result;
+		BackGround bg = new BackGround();
+		bg.execute(host,content);
+		try {
+			String result = bg.get();
+			System.out.println(result);
+			return result;
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		} catch (ExecutionException e) {
+			e.printStackTrace();
+		} catch ( Exception e ) {
+			System.out.println("POST ERROR");
+		}
+		return null;
+	}
+
+	private class BackGround extends AsyncTask <String, String, String> {
+		@Override
+		protected String doInBackground(String... params) {
+			String host = params[0];
+			String content = params[1];
+			return doPost(host,content);
+		}	 
 	}
 	
 	static public Map<String, String> httpParmToMap(String content) {

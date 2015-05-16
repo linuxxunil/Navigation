@@ -1,26 +1,18 @@
 package com.example.service;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 import com.example.activity.MainActivity;
 import com.example.model.Beacon;
+import com.example.model.BeaconBase;
 import com.example.model.BeaconConfig;
 import com.example.model.BeaconList;
 import com.example.model.BeaconNotification;
 import com.example.model.BeaconScanner;
-import com.example.navigation.R;
+import com.example.model.HttpClient;
 
 import android.annotation.TargetApi;
-import android.app.ActivityManager;
-import android.app.ActivityManager.RunningTaskInfo;
-import android.app.Notification;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.content.Context;
 import android.content.Intent;
-import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -38,52 +30,44 @@ public class BeaconService extends NavigationService {
 	public static final int MSG_REG_CLIENT = 1;
 	public static final int MSG_UNREG_CLIENT = 2;
 	public static final int MSG_BEACON_CONF = 3;
-	
-	
+
 	private Intent intent = null;
 	private Handler handler = null;
 	private Messenger serviceMsger = null;
 	private Messenger activityMsger = null;
 	final private BeaconList beaconList = BeaconList.create();
 	private long period = 1000; //
+	private HttpService httpService = null;
 
 	// for test
 	private void initBeaconList(BeaconList list) {
-		String path = "/storage/emulated/0/ibeacon_cfg";
-		//String path = "/sdcard/data/navigation.cfg";
+		//String path = "/storage/emulated/0/ibeacon_cfg";
+		String path = "/sdcard/data/navigation.cfg";
 		Map<String, String> cfg = BeaconConfig.getBeaconConfig(path);
-		
-		if ( cfg == null ) {
-			BeaconNotification.send(getApplicationContext(),"Cfg Not Found:"+path);
-		}
-		
-		int size = Integer.valueOf(cfg.get("size"));
-		
-		
-		for (int i=0; i<size; i++) {
-			list.register("", 
-					cfg.get("uuid["+i+"]"),
-					Integer.valueOf(cfg.get("major["+i+"]")),
-					Integer.valueOf(cfg.get("minor["+i+"]")),
-					Integer.valueOf(cfg.get("interval["+i+"]")),
-					Integer.valueOf(cfg.get("distance["+i+"]")));
-		}
-		
-		//list.register("","15345164-67ab-3e49-f9d6-e29000000008", 0,
-		//					10, 10, 0);
-			
-		//list.register("B4:99:4C:50:46:39",
-		//						"15345164-67ab-3e49-f9d6-e29000000008", 0,
-		//						65535, 3, 3);
-	}
 
+		if (cfg == null) {
+			BeaconNotification.send(getApplicationContext(), "Cfg Not Found:"
+					+ path);
+		}
+
+		int size = Integer.valueOf(cfg.get("size"));
+
+		for (int i = 0; i < size; i++) {
+			list.registerUUID(cfg.get("uuid[" + i + "]").toUpperCase());
+		}
+	}
+	// for test end
+	
 	@Override
 	public void onCreate() {
 		super.onCreate();
 		// for test
 		initBeaconList(beaconList);
+		// for test end
 		initHandler();
 		intent = new Intent(this, MainActivity.class);
+		httpService = new HttpService();
+		httpService.start();
 	}
 
 	@Override
@@ -96,7 +80,7 @@ public class BeaconService extends NavigationService {
 		doScanBeacon();
 		return 0;
 	}
-	
+
 	@Override
 	protected void initHandler() {
 		handler = new Handler() {
@@ -106,17 +90,13 @@ public class BeaconService extends NavigationService {
 				case MSG_REG_CLIENT:
 					try {
 						activityMsger = msg.replyTo;
+						httpService.setActivityMsger(activityMsger);
 					} catch (Exception e) {
-						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
 					break;
 				case MSG_UNREG_CLIENT:
 					activityMsger = null;
-					break;
-
-				case MSG_BEACON_CONF:
-					setBeaconConfig(msg.getData());
 					break;
 				default:
 					// ignore
@@ -128,27 +108,31 @@ public class BeaconService extends NavigationService {
 	}
 
 	private void setBeaconConfig(Bundle data) {
-		
-		int size = Integer.valueOf(data.getString("size"));
-		for ( int i=0; i<size; i++) {
-			String uuid = data.getString("uuid["+i+"]");
-			int major = Integer.valueOf(data.getString("major["+i+"]"));
-			int minor = Integer.valueOf(data.getString("minor["+i+"]")); 
-			
-			if ( beaconList.contains("",uuid, major, minor)) {
-				Beacon beacon = beaconList.get(uuid, major, minor);
-				double dist = Double.valueOf(data.getString("dist["+i+"]"));
-				beacon.setNotifyDistance(dist);
+		try {
+			int size = Integer.valueOf(data.getString("size"));
+			for (int i = 0; i < size; i++) {
+				String mac = data.getString("mac[" + i + "]");
+				String uuid = data.getString("uuid[" + i + "]").toUpperCase();
+				int major = Integer.valueOf(data.getString("major[" + i + "]"));
+				int minor = Integer.valueOf(data.getString("minor[" + i + "]"));
+
+				if (beaconList.containsBeacon(mac, uuid, major, minor)) {
+					Beacon beacon = beaconList.getBeacon(mac, uuid, major,
+							minor);
+					double dist = Double.valueOf(data.getString("dist[" + i + "]"));
+					beacon.setUserDefMeter(dist);
+				}
 			}
+		} catch (Exception e) {
+			e.getStackTrace();
 		}
 	}
-	
-	private void doScanBeacon() {
 
+	private void doScanBeacon() {
 		new Thread() {
 			private Bundle notifyList = new Bundle();
 			int count = 10;
-			
+
 			BeaconScanner bs = new BeaconScanner(getApplicationContext(),
 					new LeScanCallback() {
 						private int uuidStart = 9;
@@ -157,7 +141,6 @@ public class BeaconService extends NavigationService {
 						private int minorEnd = 28;
 						private String uuid = "";
 						private int major, minor;
-						 
 
 						private String getUUID(byte[] scanRecord) {
 							uuid = "";
@@ -166,7 +149,7 @@ public class BeaconService extends NavigationService {
 								if (i == 12 || i == 14 || i == 16 || i == 18)
 									uuid += "-";
 							}
-							return uuid;
+							return uuid.toUpperCase();
 						}
 
 						private int getMajor(byte[] scanRecord) {
@@ -189,139 +172,99 @@ public class BeaconService extends NavigationService {
 						@Override
 						public void onLeScan(BluetoothDevice device, int rssi,
 								byte[] scanRecord) {
+							String udid = "1234567890";
 							String uuid = getUUID(scanRecord);
 							int major = getMajor(scanRecord);
 							int minor = getMinor(scanRecord);
-							//String mac = device.getAddress();
-							String mac = "";
+							String mac = device.getAddress();
 							boolean lowBatteryFlg = false;
+							boolean pressFlg = false;
+							HttpClient http = new HttpClient();
+							String content = "";
 
-							
-							// for test : 只判斷 uuid 
-							/*
-							if ( beaconList.contains(uuid) ) {
-								if ( BeaconNotification.isRegister() ) {
-									
-									if ( count++ > 5 ) {
-										BeaconNotification.send(getApplicationContext(), "Found UUID:"+uuid);
-										count = 0;
-									}
-								}
-							}*/
-							
-							if ( major > 127 ) {
+							// check what battery status is low
+							if ((major & (0x00008000)) > 0)
 								lowBatteryFlg = true;
-								major &= 0x000000FF;
-							}
-										
+
+							// check what test button is press down
+							if ((major & (0x00004000)) > 0)
+								pressFlg = true;
+
+							/*
+							 * System.out.println("uuid:"+uuid);
+							 * System.out.println("major:"+major);
+							 * System.out.println("minor:"+minor);
+							 * System.out.println("mac:"+mac);
+							 * System.out.println
+							 * ("lowBatteryFlg:"+lowBatteryFlg);
+							 * System.out.println("pressFlg:"+pressFlg);
+							 */
 							// beacon exists on beaconList and monitor type
 							// isn't Monitor.LEAVE
-							if (beaconList.contains(mac, uuid, major, minor)) {
+							major &= 0x000000FF;
+
+							if (beaconList.containsUUID(uuid)) {
 								Log.i(CLASSNAME, "Monitor");
-								Beacon beacon = beaconList.get(mac, uuid,
-														major, minor);
+
+								if (!beaconList.containsBeacon(mac, uuid,major, minor))
+									beaconList.registerBeacon(mac, uuid, major, minor);
+
+								Beacon beacon = beaconList.getBeacon(mac, uuid,major, minor);
+								beacon.setBatteryFlg(lowBatteryFlg);
+								beacon.setPressFlg(pressFlg);
+								beacon.setRSSI(rssi);
 								
-								if ( lowBatteryFlg)
-									beacon.setBatteryFlg(true);
-								else
-									beacon.setBatteryFlg(false);
-								
-								int status = beacon.getMonitorStatus();
 								// reset count
 								beacon.resetCount();
 								
-								if (status == Beacon.Monitor.LEAVE) {
-									Log.i(CLASSNAME, "FOUND");
-									beacon.setMonitorStatus(Beacon.Monitor.FOUND);
-									
-									Log.i(CLASSNAME, "add FOUND NList");
-									
-									notifyList.putBundle(
-											String.valueOf(notifyList.size()+1),
-												toBundle(beacon, rssi));
-												
-									
-								} else {
-									if (status == Beacon.Monitor.FOUND) {
-										double distance = beacon
-												.toDistance(rssi);
-										
-										// when distance < define value , then
-										// send notification
-										if (distance <= beacon
-												.getNotifyDistance()) {
-											
-											beacon.setMonitorStatus(Beacon.Monitor.ENTERSCOPE);
-											
-											Log.i(CLASSNAME,"add ENTERSCOPE NList");
-											notifyList.putBundle(
-													String.valueOf(notifyList.size()+1),
-														toBundle(beacon, rssi));
-										}
-									}
-								}
+								// send to HttpService
+								httpService.post(beacon);
+								
+								
 							} else {
-								Log.i(CLASSNAME, "The beacon hasn't register:"+uuid+major+minor);
+								Log.i(CLASSNAME, "The UUID hasn't register:" + uuid);
 							}
 						}
 					});
-			
-			private Bundle toBundle(Beacon beacon, int rssi) {
-				Bundle bundle = new Bundle();
-				bundle.putString("mac", beacon.getMAC());
-				bundle.putString("uuid", beacon.getUUID());
-				
-				int major = beacon.getMajor();
-				bundle.putString("major", String.valueOf(beacon.getMajor()));
-				bundle.putString("minor", String.valueOf(beacon.getMinor()));
-				bundle.putString("minitorStatus", String.valueOf(beacon.getMonitorStatus()));
-				if ( rssi != -1 ) bundle.putString("rssi", String.valueOf(rssi));
-				return bundle;
-			}
+
+
 
 			private void doRemoveLeaveBeacon() {
-				for (int i = 0; i < beaconList.length; i++) {
-					
-					Beacon beacon = beaconList.get(i+1);
-					
+				for (int i = 0; i < beaconList.beaconLength(); i++) {
+					Beacon beacon = beaconList.getBeacon(i + 1);
 					if (beacon != null
-							&& beacon.getMonitorStatus() != Beacon.Monitor.LEAVE) {
+							&& beacon.getRSSI() != 0
+							&& beacon.getMonitorMode() != Beacon.MonitorMode.LEAVE) {
 						int c = beacon.doCount();
 						System.out.println(c);
 						if (c <= 0) {
-							beacon.setMonitorStatus(Beacon.Monitor.LEAVE);
 							Log.i(CLASSNAME, "add Leave NList");
-							notifyList.putBundle(
-									String.valueOf(notifyList.size()+1),
-									toBundle(beacon, -1));
+							beacon.setRSSI(0);
+							httpService.post(beacon);
 						}
 					} else {
-						// Beacon type is leave , don't do anything 
+						// Beacon type is leave , don't do anything
 					}
 				}
 			}
 
 			@Override
 			public void run() {
+				notifyList = new Bundle();
 				while (true) {
 					try {
-						if ( notifyList.size() > 0)
-							notifyList = new Bundle();
-						
 						bs.start();
 						Thread.sleep(period);
 						bs.stop();
-						doRemoveLeaveBeacon();
-						
-						if ( notifyList.size() > 0 )
-							sendMessageToActivity(notifyList);
+						doRemoveLeaveBeacon();	
 					} catch (Exception e) {
+						e.getStackTrace();
 					}
 				}
 			}
 		}.start();
-	} 
-	
+	}
+
 	private void sendMessageToActivity(Bundle list) {
 		try {
 			Message msg = Message.obtain();
@@ -329,7 +272,6 @@ public class BeaconService extends NavigationService {
 			msg.setData(list);
 			activityMsger.send(msg);
 		} catch (RemoteException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
