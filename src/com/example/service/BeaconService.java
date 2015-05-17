@@ -4,7 +4,6 @@ import java.util.Map;
 
 import com.example.activity.MainActivity;
 import com.example.model.Beacon;
-import com.example.model.BeaconBase;
 import com.example.model.BeaconConfig;
 import com.example.model.BeaconList;
 import com.example.model.BeaconNotification;
@@ -14,12 +13,10 @@ import com.example.model.HttpClient;
 import android.annotation.TargetApi;
 import android.content.Intent;
 import android.os.Build;
-import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
-import android.os.RemoteException;
 import android.util.Log;
 import android.bluetooth.BluetoothAdapter.LeScanCallback;
 import android.bluetooth.BluetoothDevice;
@@ -107,32 +104,8 @@ public class BeaconService extends NavigationService {
 		serviceMsger = new Messenger(handler);
 	}
 
-	private void setBeaconConfig(Bundle data) {
-		try {
-			int size = Integer.valueOf(data.getString("size"));
-			for (int i = 0; i < size; i++) {
-				String mac = data.getString("mac[" + i + "]");
-				String uuid = data.getString("uuid[" + i + "]").toUpperCase();
-				int major = Integer.valueOf(data.getString("major[" + i + "]"));
-				int minor = Integer.valueOf(data.getString("minor[" + i + "]"));
-
-				if (beaconList.containsBeacon(mac, uuid, major, minor)) {
-					Beacon beacon = beaconList.getBeacon(mac, uuid, major,
-							minor);
-					double dist = Double.valueOf(data.getString("dist[" + i + "]"));
-					beacon.setUserDefMeter(dist);
-				}
-			}
-		} catch (Exception e) {
-			e.getStackTrace();
-		}
-	}
-
 	private void doScanBeacon() {
 		new Thread() {
-			private Bundle notifyList = new Bundle();
-			int count = 10;
-
 			BeaconScanner bs = new BeaconScanner(getApplicationContext(),
 					new LeScanCallback() {
 						private int uuidStart = 9;
@@ -179,8 +152,6 @@ public class BeaconService extends NavigationService {
 							String mac = device.getAddress();
 							boolean lowBatteryFlg = false;
 							boolean pressFlg = false;
-							HttpClient http = new HttpClient();
-							String content = "";
 
 							// check what battery status is low
 							if ((major & (0x00008000)) > 0)
@@ -227,8 +198,6 @@ public class BeaconService extends NavigationService {
 						}
 					});
 
-
-
 			private void doRemoveLeaveBeacon() {
 				for (int i = 0; i < beaconList.beaconLength(); i++) {
 					Beacon beacon = beaconList.getBeacon(i + 1);
@@ -250,7 +219,6 @@ public class BeaconService extends NavigationService {
 
 			@Override
 			public void run() {
-				notifyList = new Bundle();
 				while (true) {
 					try {
 						bs.start();
@@ -263,16 +231,5 @@ public class BeaconService extends NavigationService {
 				}
 			}
 		}.start();
-	}
-
-	private void sendMessageToActivity(Bundle list) {
-		try {
-			Message msg = Message.obtain();
-			msg.what = 0;
-			msg.setData(list);
-			activityMsger.send(msg);
-		} catch (RemoteException e) {
-			e.printStackTrace();
-		}
 	}
 }

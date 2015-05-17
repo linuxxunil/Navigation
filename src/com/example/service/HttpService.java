@@ -247,4 +247,25 @@ public class HttpService extends Thread{
 		bundle.putString("result", result);
 		return bundle;
 	}
+	
+	private void setBeaconConfig(Bundle data) {
+		try {
+			int size = Integer.valueOf(data.getString("size"));
+			for (int i = 0; i < size; i++) {
+				String mac = data.getString("mac[" + i + "]");
+				String uuid = data.getString("uuid[" + i + "]").toUpperCase();
+				int major = Integer.valueOf(data.getString("major[" + i + "]"));
+				int minor = Integer.valueOf(data.getString("minor[" + i + "]"));
+
+				//if (beaconList.containsBeacon(mac, uuid, major, minor)) {
+				//	Beacon beacon = beaconList.getBeacon(mac, uuid, major,
+				//			minor);
+				//	double dist = Double.valueOf(data.getString("dist[" + i + "]"));
+				//	beacon.setUserDefMeter(dist);
+				//}
+			}
+		} catch (Exception e) {
+			e.getStackTrace();
+		}
+	}
 }

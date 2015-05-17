@@ -12,6 +12,7 @@ import com.example.model.BeaconBase;
 import com.example.model.BeaconNotification;
 import com.example.model.BeaconWebViewClient;
 import com.example.model.AsyncHttpClient;
+import com.example.model.BluetoothLowEnergy;
 import com.example.navigation.R;
 import com.example.service.BeaconService;
 import com.example.service.BeaconServiceConnection;
@@ -23,6 +24,8 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -40,6 +43,7 @@ public class MainActivity extends NavigationActivity {
 	private Handler handler = null;
 	private boolean isBind = false;
 	private WebView webView = null;
+	private Context context = null;
 	static public boolean active = true;
 
 	// for test
@@ -50,7 +54,7 @@ public class MainActivity extends NavigationActivity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-
+		context = getApplicationContext();
 		setContentView(R.layout.activity_main);
 
 		// for test
@@ -60,7 +64,6 @@ public class MainActivity extends NavigationActivity {
 
 			@Override
 			public void onClick(View v) {
-				Context context = getApplicationContext();
 				Intent restartIntent = context.getPackageManager()
 						.getLaunchIntentForPackage(context.getPackageName());
 				PendingIntent intent = PendingIntent.getActivity(context, 0,
@@ -80,6 +83,9 @@ public class MainActivity extends NavigationActivity {
 		activityMsger = initServiceHandler();
 
 		initWebView();
+		
+		inspectBluetoohAvailable();
+		inspectNetworkAvailable();
 	}
 
 	private void initWebView() {
@@ -228,25 +234,48 @@ public class MainActivity extends NavigationActivity {
 		}
 	};
 
-	private void showBluetooth() {
+	private void inspectBluetoohAvailable() {
 
-		AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-		builder.setTitle("Navigation");
-		builder.setMessage("是否開啟藍芽");
-		builder.setPositiveButton("取消", new DialogInterface.OnClickListener() {
-			@Override
-			public void onClick(DialogInterface dialog, int i) {
-				finish();
-			}
-		});
+		final BluetoothLowEnergy ble = new BluetoothLowEnergy(getApplicationContext());
+		if ( !ble.isEnabled() ) {
+			AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+			builder.setTitle("Navigation");
+			builder.setMessage("你的藍牙裝置未開啟，是否開啟藍芽？");
+			builder.setPositiveButton("取消", new DialogInterface.OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int i) {
+					finish();
+				}
+			});
 
-		builder.setNegativeButton("確認", new DialogInterface.OnClickListener() {
+			builder.setNegativeButton("確認", new DialogInterface.OnClickListener() {
 
-			@Override
-			public void onClick(DialogInterface dialog, int i) {
-				finish();
-			}
-		});
-		builder.show();
+				@Override
+				public void onClick(DialogInterface dialog, int i) {
+					ble.enable();
+				}	
+			});
+			builder.show();
+		}
+	}
+	
+	private void inspectNetworkAvailable() {
+		ConnectivityManager connectivityManager 
+		        		= (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+		NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+		if ( !(activeNetworkInfo != null 
+				&& activeNetworkInfo.isConnected()) ) {
+			AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+			builder.setTitle("Navigation");
+			builder.setMessage("你的設備無法連上網路，請檢查你的網路狀態？");
+	
+			builder.setNegativeButton("確認", new DialogInterface.OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int i) {
+					finish();
+				}	
+			});
+			builder.show();
+		}
 	}
 }
