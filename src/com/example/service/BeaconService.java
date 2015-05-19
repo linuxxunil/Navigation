@@ -39,19 +39,23 @@ public class BeaconService extends NavigationService {
 	// for test
 	private void initBeaconList(BeaconList list) {
 		//String path = "/storage/emulated/0/ibeacon_cfg";
-		String path = "/sdcard/data/navigation.cfg";
-		Map<String, String> cfg = BeaconConfig.getBeaconConfig(path);
+		//String path = "/sdcard/data/navigation.cfg";
+		//Map<String, String> cfg = BeaconConfig.getBeaconConfig(path);
 
-		if (cfg == null) {
-			BeaconNotification.send(getApplicationContext(), "Cfg Not Found:"
-					+ path);
-		}
+		//if (cfg == null) {
+		//	BeaconNotification.send(getApplicationContext(), "Cfg Not Found:"
+		//			+ path);
+		//}
 
-		int size = Integer.valueOf(cfg.get("size"));
+		//int size = Integer.valueOf(cfg.get("size"));
 
-		for (int i = 0; i < size; i++) {
-			list.registerUUID(cfg.get("uuid[" + i + "]").toUpperCase());
-		}
+		//for (int i = 0; i < size; i++) {
+		//	list.registerUUID(cfg.get("uuid[" + i + "]").toUpperCase());
+		//}
+		list.registerUUID("15345164-67AB-3E49-F9D6-E29000000009");
+		list.registerUUID("303303CC-0001-0000-0000-CC0000000000");
+		list.registerUUID("15345164-67AB-3E49-F9D6-E29000000007");
+		
 	}
 	// for test end
 	
@@ -176,6 +180,7 @@ public class BeaconService extends NavigationService {
 
 							if (beaconList.containsUUID(uuid)) {
 								Log.i(CLASSNAME, "Monitor");
+								
 
 								if (!beaconList.containsBeacon(mac, uuid,major, minor))
 									beaconList.registerBeacon(mac, uuid, major, minor);

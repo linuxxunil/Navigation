@@ -221,7 +221,7 @@ public class MainActivity extends NavigationActivity {
 			System.out.println("doJsFoundBeacon : " + json);
 			if (view == null)
 				return;
-			view.loadUrl("javascript:foundBeacon(" + "\"" + json + "\")");
+			view.loadUrl("javascript:foundBeacon(\'" + json + "\')");
 		}
 
 		@Override
@@ -229,8 +229,8 @@ public class MainActivity extends NavigationActivity {
 			System.out.println("doJsRemoveBeacon");
 			if (view == null)
 				return;
-			view.loadUrl("javascript:removeBeacon(\"" + uuid + "\",\"" + major
-					+ "\",\"" + minor + "\")");
+			view.loadUrl("javascript:removeBeacon(\'" + uuid + "\',\'" + major
+					+ "\',\'" + minor + "\')");
 		}
 	};
 
