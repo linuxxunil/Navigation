@@ -26,25 +26,21 @@ public class BeaconConfig {
 				if ( str != null) {
 					cfg.put("size", String.valueOf(i+1));
 					cfg.put("uuid["+i+"]", str[0]);
-					cfg.put("major["+i+"]", str[1]);
-					cfg.put("minor["+i+"]", str[2]);
-					cfg.put("interval["+i+"]", str[3]);
-					cfg.put("distance["+i+"]", str[4]);
 					i++;
 				}
 			}
 		} catch (FileNotFoundException e) {
-			System.out.println("Config Not Found :"+e.getMessage());
+			e.getStackTrace();
 			cfg = null;
 		} catch (IOException e1) {
-			System.out.println("IO Error");
+			e1.getStackTrace();
 			cfg = null;
 		} finally {
 			try {
 				br.close();
 				fr.close();
 			} catch (Exception e) {
-				// nothing
+				e.getStackTrace();
 			}
 		}
 		return cfg;

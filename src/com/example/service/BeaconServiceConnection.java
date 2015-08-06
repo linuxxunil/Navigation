@@ -61,15 +61,5 @@ public class BeaconServiceConnection implements ServiceConnection {
 	private void unRegisterActivity() {
 		sendMessage(BeaconService.MSG_REG_CLIENT,null);
 	}
-		
-	public void sendBeaconConfig(Map<String, String> content) {
-		Bundle bundle = new Bundle();
-		for ( String key : content.keySet() ) {
-			bundle.putString(key, content.get(key));
-	    }
-		
-		sendMessage(BeaconService.MSG_BEACON_CONF, bundle);
-	}
-	
 };
 	

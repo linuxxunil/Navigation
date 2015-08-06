@@ -1,74 +1,39 @@
 package com.example.model;
 
-import com.example.logging.Log;
-import com.example.logging.LogCode;
+import android.util.Log;
 
-public class Beacon {
-	private String mac;
-	private String uuid;
-	private int major;
-	private int minor;
-	private int monitor = Monitor.LEAVE;
+public class Beacon extends BeaconBase{
+	private int monitor = MonitorMode.LEAVE;
 	private int interval = 5; // for default
 	private int count = interval;
-	private double notifyDistance = 10; // for notify use, default = 10 meter
-	static private int benchmark = -70; 
-	static private double n = 2.92;
+	private double userDefMeter = 10; // for notify use, default = 10 meter	
 	private boolean lowBatteryFlg = false;
+	private boolean pressFlg = false;
+	private boolean enter1MeterFlg = false;
 
 	
-	static public class Monitor {
-		static public int LEAVE = 0;
-		static public int FOUND = 1;
-		static public int ENTERSCOPE = 2;
-	}
-	
-	private void initParameter(String mac, String uuid, int major, int minor) {
-		this.mac = mac;
-		this.uuid = uuid;
-		this.major = major;
-		this.minor = minor;
+	static public class MonitorMode {
+		static final public int LEAVE = 0;
+		static final public int ENTER = 1;
+		static final public int ENTER_USER_DEF_METER = 2;
+		static final public int LEAVE_USER_DEF_METER = 3;
+		static final public int ENTER_1_METER = 4;
+		static final public int LEAVE_1_METER = 5;
 	}
 	
 	public Beacon (String mac, String uuid, int major, int minor) {
-		initParameter(mac, uuid, major, minor);
-	}
-	
-	public void setBenchmark(int dBmAtOneMeter) {
-		benchmark = dBmAtOneMeter;
+		super(mac, uuid, major, minor);
 	}
 
-	public double toDistance(double rssi) {
-		double tmp = -(rssi - benchmark) / (10 * n);
-		double distance = Math.pow(10, tmp);
-		return distance;
+	public double getUserDefMeter() {
+		return userDefMeter;
 	}
 	
-	public String getUUID() {
-		return uuid;
+	public void setUserDefMeter(double meter) {
+		userDefMeter = meter;
 	}
 	
-	public int getMajor() {
-		return major;
-	}
-	
-	public int getMinor() {
-		return minor;
-	}
-	
-	public String getMAC() {
-		return mac;
-	}
-	
-	public double getNotifyDistance() {
-		return notifyDistance;
-	}
-	
-	public void setNotifyDistance(double dist) {
-		notifyDistance = dist;
-	}
-	
-	public int getMonitorStatus() {
+	public int getMonitorMode() {
 		return monitor;
 	}
 	
@@ -79,20 +44,31 @@ public class Beacon {
 	public void setBatteryFlg(boolean flg) {
 		lowBatteryFlg = flg;
 	}
+	
+	public boolean getPressFlg() {
+		return pressFlg;
+	}
+	
+	public void setPressFlg(boolean flg) {
+		pressFlg = flg;
+	}
 		
 	/**
 	 * 
 	 * @param m
 	 */
-	public int setMonitorStatus(int m) {
-		
-		if ( m == Beacon.Monitor.FOUND || 
-				m == Beacon.Monitor.ENTERSCOPE || 
-				m == Beacon.Monitor.LEAVE) {
+	public boolean setMonitorMode(int m) {
+		boolean status = true;
+		if ( m == Beacon.MonitorMode.ENTER || 
+				m == Beacon.MonitorMode.ENTER_USER_DEF_METER ||
+				m == Beacon.MonitorMode.ENTER_1_METER ||
+				m == Beacon.MonitorMode.LEAVE ||
+				m == Beacon.MonitorMode.LEAVE_USER_DEF_METER ||
+				m == Beacon.MonitorMode.LEAVE_1_METER 
+				) {
 			monitor = m;
-			return LogCode.success;
-		}
-		return Log.e(this, LogCode.INF_NOT_FOUND_MONITOR_TYPE);
+		} else status = false ;
+		return status;
 	}
 	
 	/**
@@ -100,8 +76,9 @@ public class Beacon {
 	 * @return
 	 */
 	public int doCount() {
-		if ( --count < 0 ) 
+		if ( --count < 0 ) {
 			count = 0;
+		}
 		return count;
 	}
 	
